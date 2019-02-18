@@ -34,13 +34,17 @@ def svm_loss_naive(W, X, y, reg):
       margin = scores[j] - correct_class_score + 1 # note delta = 1
       if margin > 0:
         loss += margin
+        dW[:,j] += X[i]
+        dW[:,y[i]] -= X[i]
 
   # Right now the loss is a sum over all training examples, but we want it
   # to be an average instead so we divide by num_train.
   loss /= num_train
+  dW /= num_train
 
   # Add regularization to the loss.
   loss += reg * np.sum(W * W)
+  dW += reg * 2 * W
 
   #############################################################################
   # TODO:                                                                     #
@@ -64,12 +68,27 @@ def svm_loss_vectorized(W, X, y, reg):
   loss = 0.0
   dW = np.zeros(W.shape) # initialize the gradient as zero
 
+  num_classes = W.shape[1]
+  num_train = X.shape[0]
   #############################################################################
   # TODO:                                                                     #
   # Implement a vectorized version of the structured SVM loss, storing the    #
   # result in loss.                                                           #
   #############################################################################
-  pass
+  # compute scores
+  S = X @ W  # (N,C) score matrix
+  # subtract correct score
+  S_y = S[range(num_train), y] #(N,) correct score
+  M = S - np.expand_dims(S_y, 1)
+  # add margin
+  M += 1
+  M[range(num_train), y] = 0
+  # max
+  M = np.maximum(0,M)
+  loss = np.sum(M) / num_train
+  # add regularization
+  loss += reg * np.sum(W*W)
+  
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
@@ -84,7 +103,14 @@ def svm_loss_vectorized(W, X, y, reg):
   # to reuse some of the intermediate values that you used to compute the     #
   # loss.                                                                     #
   #############################################################################
-  pass
+  
+  I = (M > 0).astype(int) # I_ij => add X[i] to dW[:,j]
+                          # (N,C)   sub X[i] to dW[:, y[i]]
+  I[range(num_train), y] = -I.sum(axis=1)  # they should be 0 before
+  dW += X.T @ I
+  dW /= num_train
+  # regularization term
+  dW += 2 * reg * W
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
