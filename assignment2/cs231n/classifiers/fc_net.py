@@ -268,6 +268,8 @@ class FullyConnectedNet(object):
             # relu
             scores, caches[f'relu{i}'] = relu_forward(scores)
             # dropout
+            if self.use_dropout:
+              scores, caches[f'dropout{i}'] = dropout_forward(scores, self.dropout_param)
 
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -295,6 +297,8 @@ class FullyConnectedNet(object):
         for i in range(self.num_layers, 0, -1): # opposite direction
           if i < self.num_layers: # not the last layer
             # dropout
+            if self.use_dropout:
+              dout = dropout_backward(dout, caches[f'dropout{i}'])
             # relu
             dout = relu_backward(dout, caches[f'relu{i}'])
             # batch
