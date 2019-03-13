@@ -5,7 +5,6 @@ import numpy as np
 from cs231n.layers import *
 from cs231n.rnn_layers import *
 
-
 class CaptioningRNN(object):
     """
     A CaptioningRNN produces captions from image features using a recurrent
@@ -140,7 +139,28 @@ class CaptioningRNN(object):
         # Note also that you are allowed to make use of functions from layers.py   #
         # in your implementation, if needed.                                       #
         ############################################################################
-        pass
+        # forward pass
+        # (1)
+        h0, cache_h0 = affine_forward(features, W_proj, b_proj)
+        # (2)
+        embedding, cache_embedding = word_embedding_forward(captions_in, W_embed)
+        # (3)
+        if self.cell_type == 'rnn':
+          h, cache_h = rnn_forward(embedding, h0, Wx, Wh, b)
+        # (4)
+        scores, scores_cache = temporal_affine_forward(h, W_vocab, b_vocab)
+        # (5)
+        loss, dx = temporal_softmax_loss(scores, captions_out, mask)
+
+        # backward pass
+        dx, grads['W_vocab'], grads['b_vocab'] = temporal_affine_backward(dx, scores_cache)
+
+        if self.cell_type == 'rnn':
+          dx, dh0, grads['Wx'], grads['Wh'], grads['b'] = rnn_backward(dx, cache_h)
+
+        grads['W_embed'] = word_embedding_backward(dx, cache_embedding)
+
+        dx, grads['W_proj'], grads['b_proj'] = affine_backward(dh0, cache_h0)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -205,7 +225,20 @@ class CaptioningRNN(object):
         # NOTE: we are still working over minibatches in this function. Also if   #
         # you are using an LSTM, initialize the first cell state to zeros.        #
         ###########################################################################
-        pass
+        # (0)
+        last_h, __ = affine_forward(features, W_proj, b_proj)
+        last_word = np.full(N,self._start) # (N,)
+        for i in range(max_length):
+          # (1)
+          embedding, __ = word_embedding_forward(last_word, W_embed) # (N,D)
+          # (2)
+          if self.cell_type == 'rnn':
+            last_h, __ = rnn_step_forward(embedding, last_h, Wx, Wh, b) #(N,H)
+          # (3)
+          scores = last_h @ W_vocab + b_vocab
+          # (4)
+          captions[:,i] = np.argmax(scores, axis=1)
+          last_word = captions[:,i]
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
